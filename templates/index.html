@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Candidate Predictor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.candidate {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.not-candidate {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .descriptors {
+            margin-top: 15px;
+        }
+        .descriptors div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Drug Candidate Predictor</h1>
+        <div class="form-group">
+            <label for="smiles">Enter SMILES:</label>
+            <input type="text" id="smiles" placeholder="e.g., CCO for ethanol">
+        </div>
+        <div class="form-group">
+            <label for="model">Select Model:</label>
+            <select id="model">
+                <option value="random_forest">Random Forest</option>
+                <option value="gradient_boosting">Gradient Boosting</option>
+                <option value="neural_network">Neural Network</option>
+            </select>
+        </div>
+        <button id="predictBtn">Predict</button>
+        
+        <div id="error" class="error"></div>
+        <div id="result" class="result">
+            <h2>Prediction Result</h2>
+            <p><strong>SMILES:</strong> <span id="res-smiles"></span></p>
+            <p><strong>Lipinski Pass:</strong> <span id="res-lipinski"></span></p>
+            <div class="descriptors" id="descriptors"></div>
+            <p><strong>ML Probability (Active):</strong> <span id="res-proba"></span></p>
+            <p><strong>Is Drug Candidate:</strong> <span id="res-candidate"></span></p>
+            <p><strong>Reason:</strong> <span id="res-reason"></span></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('predictBtn').addEventListener('click', function() {
+            const smiles = document.getElementById('smiles').value.trim();
+            const model = document.getElementById('model').value;
+            const errorDiv = document.getElementById('error');
+            const resultDiv = document.getElementById('result');
+            
+            // Reset
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+            resultDiv.style.display = 'none';
+            
+            if (!smiles) {
+                errorDiv.textContent = 'Please enter a SMILES string.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Send request to Flask API
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({smiles: smiles, model: model})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                } else {
+                    // Display result
+                    document.getElementById('res-smiles').textContent = data.smiles;
+                    document.getElementById('res-lipinski').textContent = data.lipinski_pass ? 'Yes' : 'No';
+                    
+                    // Lipinski descriptors
+                    const descriptorsDiv = document.getElementById('descriptors');
+                    descriptorsDiv.innerHTML = '';
+                    if (data.lipinski_descriptors) {
+                        for (const [key, value] of Object.entries(data.lipinski_descriptors)) {
+                            const div = document.createElement('div');
+                            div.innerHTML = `<span>${key}:</span> <span>${value.toFixed(2)}</span>`;
+                            descriptorsDiv.appendChild(div);
+                        }
+                    } else {
+                        descriptorsDiv.innerHTML = '<div><span>N/A</span></div>';
+                    }
+                    
+                    document.getElementById('res-proba').textContent = data.ml_probability !== null ? data.ml_probability.toFixed(3) : 'N/A';
+                    document.getElementById('res-candidate').textContent = data.is_candidate ? 'Yes' : 'No';
+                    document.getElementById('res-reason').textContent = data.reason;
+                    
+                    // Set result box color
+                    resultDiv.className = 'result';
+                    if (data.is_candidate) {
+                        resultDiv.classList.add('candidate');
+                    } else {
+                        resultDiv.classList.add('not-candidate');
+                    }
+                    resultDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                errorDiv.textContent = 'An error occurred: ' + error.message;
+                errorDiv.style.display = 'block';
+            });
+        });
+    </script>
+</body>
+</html>

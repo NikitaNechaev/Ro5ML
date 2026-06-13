@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Check file structure
+      run: |
+        echo "Checking required directories and files..."
+        test -d "src" && echo "src directory exists" || exit 1
+        test -d "data/processed" && echo "data/processed directory exists" || exit 1
+        test -d "models" && echo "models directory exists" || exit 1
+        test -f "requirements.txt" && echo "requirements.txt exists" || exit 1
+        test -f "README.md" && echo "README.md exists" || exit 1
+        test -f "run.py" && echo "run.py exists" || exit 1
+        test -f "app.py" && echo "app.py exists" || exit 1
+
+    - name: Test CLI
+      run: |
+        echo "Testing CLI with a simple SMILES (ethanol)..."
+        python run.py --smiles "CCO" --model random_forest
+
+    - name: Test web app import
+      run: |
+        echo "Testing that the Flask app can be imported..."
+        python -c "from app import app; print('Flask app imported successfully')"
+
+    - name: Test feature generation
+      run: |
+        echo "Testing feature generation..."
+        python -c "
+import sys
+sys.path.append('src')
+from features import calculate_lipinski_descriptors, calculate_ecfp4, calculate_maccs, lipinski_pass
+smiles = 'CCO'
+desc = calculate_lipinski_descriptors(smiles)
+print('Lipinski descriptors:', desc)
+ecfp = calculate_ecfp4(smiles)
+print('ECFP4 shape:', ecfp.shape if ecfp is not None else None)
+maccs = calculate_maccs(smiles)
+print('MACCS shape:', maccs.shape if maccs is not None else None)
+pass_lipinski = lipinski_pass(desc)
+print('Lipinski pass:', pass_lipinski)
+        "
+
+    - name: Test model loading
+      run: |
+        echo "Testing that models can be loaded..."
+        python -c "
+import sys
+import joblib
+import os
+sys.path.append('src')
+models = ['random_forest', 'gradient_boosting', 'neural_network']
+for model_name in models:
+    model_path = os.path.join('models', f'{model_name}.pkl')
+    if os.path.exists(model_path):
+        model = joblib.load(model_path)
+        print(f'{model_name} loaded successfully')
+    else:
+        print(f'Warning: {model_path} not found')
+        "
