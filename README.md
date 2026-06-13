@@ -164,17 +164,3 @@ To run the notebooks:
 ```bash
 jupyter notebook
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- RDKit for cheminformatics
-- Scikit-learn for machine learning algorithms
-- The creators of the BACE dataset
