@@ -1,4 +1,4 @@
-# Drug Candidate Predictor
+# Ro5ML - Drug Candidate Predictor
 
 A machine learning-based system for predicting drug-likeness and biological activity of molecules from SMILES strings. The system applies Lipinski's Rule of Five as a primary filter and uses machine learning models (Random Forest, Gradient Boosting, Neural Network) to predict biological activity.
 
